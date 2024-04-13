@@ -6,17 +6,23 @@
 #include <time.h>
 #include <string.h>
 #include <math.h>
-#include <stdbool.h>
+#include <ctype.h>
+
+// #include <hpdf.h>
+#include "../libharu/include/hpdf.h"
 
 int main(int argc, char *argv[]) {
+    srand(time(NULL));
+
     Grid ws = (Grid) {
         (Coord) {100, 100},
+        false,
         NULL,
         0,
         NULL
     };
 
-    ws.words = malloc(1 * sizeof(Word));
+    ws.words = malloc(7*sizeof(Word));
     append_word(&ws, "test");
 
     ws.letters = malloc(ws.size.x * ws.size.y * sizeof(char *));
@@ -24,16 +30,15 @@ int main(int argc, char *argv[]) {
         ws.letters[x] = malloc(ws.size.y);
     populate_grid(&ws);
 
+    export_pdf(&ws);
     debug_display_grid(&ws);
 
-    free(ws.words);
+    free_grid(&ws);
     return 0;
 }
 
 // TODO: bounds checking
 void append_word(Grid *grid, char *word) {
-    srand(time(NULL));
-
     size_t radius = strlen(word);
     Order position = RANDC + RANDC;
 
@@ -66,7 +71,7 @@ void append_word(Grid *grid, char *word) {
 void populate_grid(Grid *grid) {
     for(uint8_t y = 0; y < grid->size.y; y++) {
         for(uint8_t x = 0; x < grid->size.x; x++) {
-            grid->letters[y][x] = '.';
+            grid->letters[y][x] = (grid->casing ? 'A' : 'a') + rand()%(grid->casing ? 'Z' - 'A' : 'z' - 'a');
         }
     }
 
@@ -99,8 +104,8 @@ void populate_words(Grid *grid) {
         const bool diagonal = word.first.y != word.last.y;
         const bool direction = word.first.y > word.last.y;
         for(uint8_t x = first.x; x < last.x; x++) {
-            grid->letters[y += diagonal ? direction*2-1 : 0][x] =
-                word.word[(forwards ? x - first.x : length - (x - first.x))];
+            char letter = word.word[(forwards ? x - first.x : length - (x - first.x))];
+            grid->letters[y += diagonal ? direction*2-1 : 0][x] = grid->casing ? toupper(letter) : tolower(letter);
         }
     }
 }
@@ -114,4 +119,20 @@ void debug_display_grid(Grid *grid) {
         }
         printf("\n");
     }
+}
+
+void free_grid(Grid *grid) {
+    for(uint8_t x = 0; x < grid->size.x; x++)
+        free(grid->letters[x]);
+    free(grid->letters);
+    free(grid->words);
+}
+
+void export_pdf(Grid *grid) {
+    HPDF_Doc pdf = HPDF_New(
+        (HPDF_Error_Handler) {
+            0, 0, NULL
+        },
+        NULL
+    );
 }
