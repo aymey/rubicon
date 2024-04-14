@@ -8,8 +8,8 @@
 #include <math.h>
 #include <ctype.h>
 
-// #include <hpdf.h>
-#include "../libharu/include/hpdf.h"
+#include <hpdf.h>
+#include "../libharu/include/hpdf.h" // for lsp
 
 int main(int argc, char *argv[]) {
     srand(time(NULL));
@@ -24,14 +24,20 @@ int main(int argc, char *argv[]) {
 
     ws.words = malloc(7*sizeof(Word));
     append_word(&ws, "test");
+    append_word(&ws, "test");
+    append_word(&ws, "test");
+    append_word(&ws, "test");
+    append_word(&ws, "test");
+    append_word(&ws, "test");
+    append_word(&ws, "test");
 
     ws.letters = malloc(ws.size.x * ws.size.y * sizeof(char *));
     for(uint8_t x = 0; x < ws.size.x; x++)
         ws.letters[x] = malloc(ws.size.y);
     populate_grid(&ws);
 
-    export_pdf(&ws);
-    debug_display_grid(&ws);
+    export_pdf(&ws, argv[1]);
+    // debug_display_grid(&ws);
 
     free_grid(&ws);
     return 0;
@@ -40,7 +46,7 @@ int main(int argc, char *argv[]) {
 // TODO: bounds checking
 void append_word(Grid *grid, char *word) {
     size_t radius = strlen(word);
-    Order position = RANDC + RANDC;
+    Order position = RAND_BIN + RAND_BIN;
 
     Coord first = {
         rand()%grid->size.x,
@@ -50,13 +56,13 @@ void append_word(Grid *grid, char *word) {
     Coord last = first;
     switch(position) {
         case Vertical:
-            last.y += radius * (RANDC ? -1 : 1);
+            last.y += radius * (RAND_BIN*2 - 1);
         case Horizontal:
-            last.x += radius * (RANDC ? -1 : 1);
+            last.x += radius * (RAND_BIN*2 - 1);
             break;
         case Diagonal:
-            last.x += radius * (RANDC ? -1 : 1);
-            last.y += radius * (RANDC ? -1 : 1);
+            last.x += radius * (RAND_BIN*2 - 1);
+            last.y += radius * (RAND_BIN*2 - 1);
         default:
             break;
     };
@@ -128,11 +134,63 @@ void free_grid(Grid *grid) {
     free(grid->words);
 }
 
-void export_pdf(Grid *grid) {
+void export_pdf(Grid *grid, char *name) {
     HPDF_Doc pdf = HPDF_New(
         (HPDF_Error_Handler) {
             0, 0, NULL
         },
         NULL
     );
+
+    if(!pdf) {
+        fprintf(stderr, "failed to create pdf object\n");
+        return;
+    }
+
+    HPDF_SetCompressionMode(pdf, HPDF_COMP_ALL);
+    uint8_t word_offset = grid->amount/WPR * 25;
+    // page one
+    {
+        HPDF_Page search = HPDF_AddPage(pdf);
+        HPDF_Page_SetSize(search, HPDF_PAGE_SIZE_A5, HPDF_PAGE_PORTRAIT);
+        HPDF_Font font = HPDF_GetFont(pdf, "Helvetica", NULL);
+        HPDF_Page_SetTextLeading(search, 20);
+        HPDF_REAL width = HPDF_Page_GetWidth(search);
+        HPDF_REAL height = HPDF_Page_GetHeight(search);
+        const HPDF_REAL font_size = width/grid->size.x;
+        HPDF_Rect rect = {
+            25,                 // left
+            25 + word_offset,   // bottom
+            width - 25,         // right
+            height - 25,        // top
+        };
+
+        HPDF_Page_Rectangle(search, rect.left, rect.bottom, rect.right - rect.left,
+                rect.top - rect.bottom);
+        HPDF_Page_Stroke(search);
+
+        HPDF_Page_BeginText(search);
+
+        // grid
+        HPDF_Page_SetFontAndSize(search, font, font_size);
+        for(uint8_t y = 0; y < grid->size.y; y++) {
+                HPDF_Page_TextRect(search, rect.left, rect.top -= font_size, rect.right, rect.bottom,
+                        grid->letters[y], HPDF_TALIGN_JUSTIFY, NULL);
+        }
+
+        // words
+        word_offset = 10;
+        rect.bottom -= 25;
+        HPDF_Page_SetFontAndSize(search, font, word_offset);
+        for(uint8_t i = 0; i < grid->amount; i++) {
+            const char *word = grid->words[i].word;
+            HPDF_Page_TextOut(search, rect.left += word_offset*strlen(word), rect.bottom -= i/WPR * 25, word);
+        }
+
+        HPDF_Page_EndText(search);
+    }
+
+    HPDF_SaveToFile(pdf, name);
+
+    HPDF_Free(pdf);
 }

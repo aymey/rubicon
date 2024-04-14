@@ -2,8 +2,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define RANDC (rand() > RAND_MAX/2)
+#define RAND_BIN (rand() > RAND_MAX/2)
 #define COORD_EQ(a, b) (a.x == b.x && a.y == b.y)
+
+#define WPR 4 // Words Per Row
+#define COL 4 // Word columns
 
 typedef struct {
     uint8_t x;
@@ -40,5 +43,5 @@ void populate_words(Grid *grid);
 
 void free_grid(Grid *grid);
 
-void export_pdf(Grid *grid);
+void export_pdf(Grid *grid, char *name);
 void debug_display_grid(Grid *grid);

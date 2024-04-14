@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -ggdb
-LDFLAGS = -Ilibharu/include -Ilibharu/build/include -lm
+LDFLAGS = -Ilibharu/include -Ilibharu/build/include -L/usr/lib -lhpdf -lm
 
 all: build libharu/build/src/libhpdf.so build/rubicon
 
