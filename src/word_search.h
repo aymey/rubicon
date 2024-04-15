@@ -1,6 +1,7 @@
 // TODO: implement variations from https://en.wikipedia.org/wiki/Word_search
 #include <stdint.h>
 #include <stdbool.h>
+#include <hpdf.h>
 
 #define RAND_BIN (rand() > RAND_MAX/2)
 #define COORD_EQ(a, b) (a.x == b.x && a.y == b.y)
@@ -31,7 +32,8 @@ typedef struct {
 // TODO: spaces inbetween words?
 typedef struct {
     Coord size;     // rectangle (width, height) of grid
-    bool casing;    // 0 - lower, 1 - upper
+    bool casing;    // 0 - lowercase , 1 - uppercase
+    bool answers;
     char **letters;
     uint8_t amount; // amount of words
     Word *words;
@@ -43,5 +45,5 @@ void populate_words(Grid *grid);
 
 void free_grid(Grid *grid);
 
-void export_pdf(Grid *grid, char *name);
 void debug_display_grid(Grid *grid);
+void pdf_export(Grid *grid, char *name);
