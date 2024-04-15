@@ -11,11 +11,13 @@
 #include <hpdf.h>
 #include "../libharu/include/hpdf.h" // for lsp
 
+#define WORDS 100
+
 int main(int argc, char *argv[]) {
     srand(time(NULL));
 
     Grid ws = (Grid) {
-        (Coord) {100, 100},
+        (Coord) {100, 10},
         true,
         false,
         NULL,
@@ -23,9 +25,9 @@ int main(int argc, char *argv[]) {
         NULL
     };
 
-    ws.words = malloc(2*sizeof(Word));
-    append_word(&ws, "test");
-    append_word(&ws, "test");
+    ws.words = malloc(WORDS*sizeof(Word));
+    for(uint8_t i = 0; i < WORDS; i++)
+        append_word(&ws, "test");
 
     ws.letters = malloc(ws.size.x * ws.size.y * sizeof(char *));
     for(uint8_t x = 0; x < ws.size.x; x++)
@@ -73,7 +75,7 @@ void append_word(Grid *grid, char *word) {
 void populate_grid(Grid *grid) {
     for(uint8_t y = 0; y < grid->size.y; y++) {
         for(uint8_t x = 0; x < grid->size.x; x++) {
-            grid->letters[y][x] = grid->answers ? '.' :
+            grid->letters[y][x] = grid->answers ? ' ' :
                 (grid->casing ? 'A' : 'a') + rand()%(grid->casing ? 'Z' - 'A' : 'z' - 'a');
         }
     }
@@ -162,6 +164,12 @@ void pdf_export(Grid *grid, char *name) {
             height - 25,        // top
         };
 
+        HPDF_REAL rect_size = grid->size.y * font_size;
+        if(rect.top > rect_size) {
+            rect.bottom = rect.top - rect_size;
+        }
+
+
         HPDF_Page_Rectangle(search, rect.left-1, rect.bottom, rect.right - rect.left,
                 rect.top - rect.bottom);
         HPDF_Page_Stroke(search);
@@ -170,20 +178,7 @@ void pdf_export(Grid *grid, char *name) {
 
         // grid
         HPDF_Page_SetFontAndSize(search, font, font_size);
-        for(uint8_t y = 0; y < grid->size.y; y++) {
-            for(uint8_t x = 0; x < grid->size.x; x++) {
-                char *letter = calloc('\0', 2*sizeof(char));
-                letter[0] = grid->letters[y][x];
-
-                HPDF_Page_TextRect(search,
-                    rect.left += font_size, //HPDF_Font_GetUnicodeWidth(font, letter[0]) * font_size / 1000,
-                    rect.top, rect.right, rect.bottom,
-                    letter, HPDF_TALIGN_JUSTIFY, NULL
-                );
-            }
-            rect.left = 25;
-            rect.top -= font_size;
-        }
+        pdf_draw_grid(search, rect, grid);
 
         // words
         word_offset = 10;
@@ -229,15 +224,29 @@ void pdf_export(Grid *grid, char *name) {
 
         // grid
         HPDF_Page_SetFontAndSize(answers, font, font_size);
-        for(uint8_t y = 0; y < grid->size.y; y++) {
-                HPDF_Page_TextRect(answers, rect.left, rect.top, rect.right, rect.bottom,
-                        grid->letters[y], HPDF_TALIGN_JUSTIFY, NULL);
-                rect.top -= font_size;
-        }
+        pdf_draw_grid(answers, rect, grid);
         HPDF_Page_EndText(answers);
     }
 
     HPDF_SaveToFile(pdf, name);
 
     HPDF_Free(pdf);
+}
+
+void pdf_draw_grid(HPDF_Page page, HPDF_Rect rect, Grid *grid) {
+    const HPDF_REAL font_size = HPDF_Page_GetWidth(page)/grid->size.x;
+    for(uint8_t y = 0; y < grid->size.y; y++) {
+        rect.left = 25 - font_size;
+        for(uint8_t x = 0; x < grid->size.x; x++) {
+            char *letter = calloc('\0', 2*sizeof(char));
+            letter[0] = grid->letters[y][x];
+
+            HPDF_Page_TextRect(page,
+                rect.left += font_size,
+                rect.top, rect.right, rect.bottom,
+                letter, HPDF_TALIGN_JUSTIFY, NULL
+            );
+        }
+        rect.top -= font_size;
+    }
 }

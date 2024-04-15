@@ -45,5 +45,7 @@ void populate_words(Grid *grid);
 
 void free_grid(Grid *grid);
 
+void pdf_draw_grid(HPDF_Page page, HPDF_Rect rect, Grid *grid);
+
 void debug_display_grid(Grid *grid);
 void pdf_export(Grid *grid, char *name);
