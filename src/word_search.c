@@ -11,13 +11,11 @@
 #include <hpdf.h>
 #include "../libharu/include/hpdf.h" // for lsp
 
-#define WORDS 100
-
 int main(int argc, char *argv[]) {
     srand(time(NULL));
 
     Grid ws = (Grid) {
-        (Coord) {100, 10},
+        (Coord) {100, 100},
         true,
         false,
         NULL,
@@ -25,9 +23,8 @@ int main(int argc, char *argv[]) {
         NULL
     };
 
-    ws.words = malloc(WORDS*sizeof(Word));
-    for(uint8_t i = 0; i < WORDS; i++)
-        append_word(&ws, "test");
+    ws.words = malloc(1*sizeof(Word));
+    append_word(&ws, "test");
 
     ws.letters = malloc(ws.size.x * ws.size.y * sizeof(char *));
     for(uint8_t x = 0; x < ws.size.x; x++)
@@ -147,7 +144,8 @@ void pdf_export(Grid *grid, char *name) {
     }
 
     HPDF_SetCompressionMode(pdf, HPDF_COMP_ALL);
-    uint8_t word_offset = grid->amount/WPR * 25;
+    // uint8_t word_offset = grid->amount/WPR * 25;
+    uint8_t word_offset = 100;
     // page one
     {
         HPDF_Page search = HPDF_AddPage(pdf);
@@ -182,17 +180,23 @@ void pdf_export(Grid *grid, char *name) {
 
         // words
         word_offset = 10;
+        rect.bottom -= word_offset;
         HPDF_Page_SetFontAndSize(search, font, word_offset);
+        HPDF_TransMatrix Tm = HPDF_Page_GetTextMatrix(search);
+        HPDF_Page_SetTextMatrix(search, Tm.a, Tm.b, Tm.c + .2, Tm.d, Tm.x, Tm.y);
         for(uint8_t i = 0; i < grid->amount; i++) {
-            const char *word = grid->words[i].word;
-            if(i%WPR == 0)
-                rect.left = 25;
+            char *word = grid->words[i].word;
 
             HPDF_Page_TextOut(search,
-                rect.left += word_offset*strlen(word),
-                rect.bottom -= (i%WPR == 0) * 25,
+                rect.left,
+                rect.bottom,
                 word
             );
+            rect.left += (_pdf_word_width(font, word) * word_offset / 1000) + 10;
+            if(rect.left >= rect.right) {
+                rect.left = 25;
+                rect.bottom -= word_offset + 10;
+            }
         }
 
         HPDF_Page_EndText(search);
@@ -249,4 +253,11 @@ void pdf_draw_grid(HPDF_Page page, HPDF_Rect rect, Grid *grid) {
         }
         rect.top -= font_size;
     }
+}
+
+HPDF_INT _pdf_word_width(HPDF_Font font, const char *word) {
+    HPDF_INT width = 0;
+    for(size_t i = 0; i < strlen(word); i++)
+        width += HPDF_Font_GetUnicodeWidth(font, word[i]);
+    return width;
 }

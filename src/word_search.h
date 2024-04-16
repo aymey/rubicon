@@ -6,9 +6,6 @@
 #define RAND_BIN (rand() > RAND_MAX/2)
 #define COORD_EQ(a, b) (a.x == b.x && a.y == b.y)
 
-#define WPR 4 // Words Per Row
-#define COL 4 // Word columns
-
 typedef struct {
     uint8_t x;
     uint8_t y;
@@ -46,6 +43,7 @@ void populate_words(Grid *grid);
 void free_grid(Grid *grid);
 
 void pdf_draw_grid(HPDF_Page page, HPDF_Rect rect, Grid *grid);
+HPDF_INT _pdf_word_width(HPDF_Font font, const char *word);
 
 void debug_display_grid(Grid *grid);
 void pdf_export(Grid *grid, char *name);
