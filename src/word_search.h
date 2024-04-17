@@ -29,7 +29,7 @@ typedef struct {
 // TODO: spaces inbetween words?
 typedef struct {
     Coord size;     // rectangle (width, height) of grid
-    bool casing;    // 0 - lowercase , 1 - uppercase
+    bool casing;    // 0 - lowercase, 1 - uppercase
     bool answers;
     char **letters;
     uint8_t amount; // amount of words
@@ -39,11 +39,13 @@ typedef struct {
 void append_word(Grid *grid, char *word);
 void populate_grid(Grid *grid);
 void populate_words(Grid *grid);
-
 void free_grid(Grid *grid);
 
 void pdf_draw_grid(HPDF_Page page, HPDF_Rect rect, Grid *grid);
+void pdf_game_page(Grid *grid, HPDF_Doc pdf);
+void pdf_answer_page(Grid *grid, HPDF_Doc pdf);
 HPDF_INT _pdf_word_width(HPDF_Font font, const char *word);
+void _pdf_restrict_rect(Grid *grid, HPDF_REAL font_size, HPDF_Rect *rect);
 
 void debug_display_grid(Grid *grid);
 void pdf_export(Grid *grid, char *name);

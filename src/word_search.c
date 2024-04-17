@@ -17,7 +17,7 @@ int main(int argc, char *argv[]) {
     Grid ws = (Grid) {
         (Coord) {100, 100},
         true,
-        false,
+        true,
         NULL,
         0,
         NULL
@@ -69,17 +69,6 @@ void append_word(Grid *grid, char *word) {
     };
 }
 
-void populate_grid(Grid *grid) {
-    for(uint8_t y = 0; y < grid->size.y; y++) {
-        for(uint8_t x = 0; x < grid->size.x; x++) {
-            grid->letters[y][x] = grid->answers ? ' ' :
-                (grid->casing ? 'A' : 'a') + rand()%(grid->casing ? 'Z' - 'A' : 'z' - 'a');
-        }
-    }
-
-    populate_words(grid);
-}
-
 Coord _max_coord(Coord a, Coord b) {
     return (Coord) {
         fmax(a.x, b.x),
@@ -92,6 +81,17 @@ Coord _min_coord(Coord a, Coord b) {
         fmin(a.x, b.x),
         fmin(a.y, b.y)
     };
+}
+
+void populate_grid(Grid *grid) {
+    for(uint8_t y = 0; y < grid->size.y; y++) {
+        for(uint8_t x = 0; x < grid->size.x; x++) {
+            grid->letters[y][x] =
+                (grid->casing ? 'A' : 'a') + rand()%(grid->casing ? 'Z' - 'A' : 'z' - 'a');
+        }
+    }
+
+    populate_words(grid);
 }
 
 void populate_words(Grid *grid) {
@@ -144,97 +144,109 @@ void pdf_export(Grid *grid, char *name) {
     }
 
     HPDF_SetCompressionMode(pdf, HPDF_COMP_ALL);
-    // uint8_t word_offset = grid->amount/WPR * 25;
-    uint8_t word_offset = 100;
-    // page one
-    {
-        HPDF_Page search = HPDF_AddPage(pdf);
-        HPDF_Page_SetSize(search, HPDF_PAGE_SIZE_A5, HPDF_PAGE_PORTRAIT);
-        HPDF_Font font = HPDF_GetFont(pdf, "Helvetica", NULL);
-        HPDF_Page_SetTextLeading(search, 20);
-        HPDF_REAL width = HPDF_Page_GetWidth(search);
-        HPDF_REAL height = HPDF_Page_GetHeight(search);
-        const HPDF_REAL font_size = width/grid->size.x;
-        HPDF_Rect rect = {
-            25,                 // left
-            25 + word_offset,   // bottom
-            width - 25,         // right
-            height - 25,        // top
-        };
 
-        HPDF_REAL rect_size = grid->size.y * font_size;
-        if(rect.top > rect_size) {
-            rect.bottom = rect.top - rect_size;
-        }
-
-
-        HPDF_Page_Rectangle(search, rect.left-1, rect.bottom, rect.right - rect.left,
-                rect.top - rect.bottom);
-        HPDF_Page_Stroke(search);
-
-        HPDF_Page_BeginText(search);
-
-        // grid
-        HPDF_Page_SetFontAndSize(search, font, font_size);
-        pdf_draw_grid(search, rect, grid);
-
-        // words
-        word_offset = 10;
-        rect.bottom -= word_offset;
-        HPDF_Page_SetFontAndSize(search, font, word_offset);
-        HPDF_TransMatrix Tm = HPDF_Page_GetTextMatrix(search);
-        HPDF_Page_SetTextMatrix(search, Tm.a, Tm.b, Tm.c + .2, Tm.d, Tm.x, Tm.y);
-        for(uint8_t i = 0; i < grid->amount; i++) {
-            char *word = grid->words[i].word;
-
-            HPDF_Page_TextOut(search,
-                rect.left,
-                rect.bottom,
-                word
-            );
-            rect.left += (_pdf_word_width(font, word) * word_offset / 1000) + 10;
-            if(rect.left >= rect.right) {
-                rect.left = 25;
-                rect.bottom -= word_offset + 10;
-            }
-        }
-
-        HPDF_Page_EndText(search);
-    }
-
-    // page 2
-    {
-        grid->answers = true;
-        populate_grid(grid);
-        HPDF_Page answers = HPDF_AddPage(pdf);
-        HPDF_Page_SetSize(answers, HPDF_PAGE_SIZE_A5, HPDF_PAGE_PORTRAIT);
-        HPDF_Font font = HPDF_GetFont(pdf, "Helvetica", NULL);
-        HPDF_Page_SetTextLeading(answers, 20);
-        HPDF_REAL width = HPDF_Page_GetWidth(answers);
-        HPDF_REAL height = HPDF_Page_GetHeight(answers);
-        const HPDF_REAL font_size = width/grid->size.x;
-        HPDF_Rect rect = {
-            25,                 // left
-            25 + word_offset,   // bottom
-            width - 25,         // right
-            height - 25,        // top
-        };
-
-        HPDF_Page_Rectangle(answers, rect.left-1, rect.bottom, rect.right - rect.left,
-                rect.top - rect.bottom);
-        HPDF_Page_Stroke(answers);
-
-        HPDF_Page_BeginText(answers);
-
-        // grid
-        HPDF_Page_SetFontAndSize(answers, font, font_size);
-        pdf_draw_grid(answers, rect, grid);
-        HPDF_Page_EndText(answers);
-    }
+    pdf_game_page(grid, pdf);
+    if(grid->answers)
+        pdf_answer_page(grid, pdf);
 
     HPDF_SaveToFile(pdf, name);
 
     HPDF_Free(pdf);
+}
+
+void _pdf_restrict_rect(Grid *grid, HPDF_REAL font_size, HPDF_Rect *rect) {
+    HPDF_REAL rect_size = grid->size.y * font_size;
+    if(rect->top > rect_size) {
+        rect->bottom = rect->top - rect_size;
+    }
+}
+
+void pdf_game_page(Grid *grid, HPDF_Doc pdf) {
+    // uint8_t word_offset = grid->amount/WPR * 25;
+    uint8_t word_offset = 100;
+    HPDF_Page search = HPDF_AddPage(pdf);
+    HPDF_Page_SetSize(search, HPDF_PAGE_SIZE_A5, HPDF_PAGE_PORTRAIT);
+    HPDF_Font font = HPDF_GetFont(pdf, "Helvetica", NULL);
+    HPDF_Page_SetTextLeading(search, 20);
+    HPDF_REAL width = HPDF_Page_GetWidth(search);
+    HPDF_REAL height = HPDF_Page_GetHeight(search);
+    const HPDF_REAL font_size = width/grid->size.x;
+    HPDF_Rect rect = {
+        25,                 // left
+        25 + word_offset,   // bottom
+        width - 25,         // right
+        height - 25,        // top
+    };
+    _pdf_restrict_rect(grid, font_size, &rect);
+
+    HPDF_Page_Rectangle(search, rect.left-1, rect.bottom, rect.right - rect.left,
+            rect.top - rect.bottom);
+    HPDF_Page_Stroke(search);
+
+    HPDF_Page_BeginText(search);
+
+    // grid
+    HPDF_Page_SetFontAndSize(search, font, font_size);
+    pdf_draw_grid(search, rect, grid);
+
+    // words
+    word_offset = 10;
+    rect.bottom -= word_offset;
+    HPDF_Page_SetFontAndSize(search, font, word_offset);
+    HPDF_TransMatrix Tm = HPDF_Page_GetTextMatrix(search);
+    HPDF_Page_SetTextMatrix(search, Tm.a, Tm.b, Tm.c + .2, Tm.d, Tm.x, Tm.y);
+    for(uint8_t i = 0; i < grid->amount; i++) {
+        char *word = grid->words[i].word;
+
+        HPDF_Page_TextOut(search,
+                rect.left,
+                rect.bottom,
+                word
+                );
+        rect.left += (_pdf_word_width(font, word) * word_offset / 1000) + 10;
+        if(rect.left >= rect.right) {
+            rect.left = 25;
+            rect.bottom -= word_offset + 10;
+        }
+    }
+
+    HPDF_Page_EndText(search);
+}
+
+void pdf_answer_page(Grid *grid, HPDF_Doc pdf) {
+    // clear grid for just answers
+    for(uint8_t y = 0; y < grid->size.y; y++) {
+        for(uint8_t x = 0; x < grid->size.x; x++) {
+            grid->letters[y][x] = ' ';
+        }
+    }
+    populate_words(grid);
+
+    HPDF_Page answers = HPDF_AddPage(pdf);
+    HPDF_Page_SetSize(answers, HPDF_PAGE_SIZE_A5, HPDF_PAGE_PORTRAIT);
+    HPDF_Font font = HPDF_GetFont(pdf, "Helvetica", NULL);
+    HPDF_Page_SetTextLeading(answers, 20);
+    HPDF_REAL width = HPDF_Page_GetWidth(answers);
+    HPDF_REAL height = HPDF_Page_GetHeight(answers);
+    const HPDF_REAL font_size = width/grid->size.x;
+    HPDF_Rect rect = {
+        25,         // left
+        25,         // bottom
+        width - 25, // right
+        height - 25,// top
+    };
+    _pdf_restrict_rect(grid, font_size, &rect);
+
+    HPDF_Page_Rectangle(answers, rect.left-1, rect.bottom, rect.right - rect.left,
+            rect.top - rect.bottom);
+    HPDF_Page_Stroke(answers);
+
+    HPDF_Page_BeginText(answers);
+
+    // grid
+    HPDF_Page_SetFontAndSize(answers, font, font_size);
+    pdf_draw_grid(answers, rect, grid);
+    HPDF_Page_EndText(answers);
 }
 
 void pdf_draw_grid(HPDF_Page page, HPDF_Rect rect, Grid *grid) {
