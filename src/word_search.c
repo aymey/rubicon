@@ -9,22 +9,28 @@
 #include <ctype.h>
 
 #include <hpdf.h>
-#include "../libharu/include/hpdf.h" // for lsp
 
 int main(int argc, char *argv[]) {
+    if(argc < 7) {
+        fprintf(stderr, "too little arguments");
+        return 1;
+    }
+
     srand(time(NULL));
 
     Grid ws = (Grid) {
-        (Coord) {100, 100},
-        true,
-        true,
+        (Coord) {*argv[2], *argv[3]},
+        *argv[4],
+        *argv[5],
         NULL,
         0,
         NULL
     };
 
-    ws.words = malloc(1*sizeof(Word));
-    append_word(&ws, "test");
+    uint8_t amount = argc - 6;
+    ws.words = malloc(amount*sizeof(Word));
+    for(uint8_t i = 0; i < amount; i++)
+        append_word(&ws, argv[6 + i]);
 
     ws.letters = malloc(ws.size.x * ws.size.y * sizeof(char *));
     for(uint8_t x = 0; x < ws.size.x; x++)
