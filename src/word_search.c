@@ -19,9 +19,9 @@ int main(int argc, char *argv[]) {
     srand(time(NULL));
 
     Grid ws = (Grid) {
-        (Coord) {*argv[2], *argv[3]},
-        *argv[4],
-        *argv[5],
+        (Coord) {atoi(argv[2]), atoi(argv[3])},
+        atoi(argv[4]),
+        atoi(argv[5]),
         NULL,
         0,
         NULL
